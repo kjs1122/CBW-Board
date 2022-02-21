@@ -2,6 +2,7 @@
     pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <%@ include file="../includes/header.jsp" %>
 <script>
 	$(document).ready(function() {
@@ -60,6 +61,11 @@
 			return true;
 			
 		}
+		
+		var csrfHeaderName = "${_csrf.headerName}";
+		var csrfTokenValue = "${_csrf.token}";
+		
+		
 			$("input[type='file']").change(function(e) {
 				var formData = new FormData;
 				var inputFile = $("input[name='uploadFile']");
@@ -77,6 +83,9 @@
 					url : "/uploadAjaxAction",
 					processData : false,
 					contentType : false,
+					beforeSend : function(xhr) {
+						xhr.setRequestHeader(csrfHeaderName,csrfTokenValue);
+					},
 					data : formData,
 					type : 'POST',
 					dataType : 'json',
@@ -209,9 +218,15 @@
                         		<label>UpdateDate</label> <input  class="form-control" name="updateDate"
                         		value='<fmt:formatDate pattern="yyyy/MM/dd" value="${board.updateDate}"/>' readonly="readonly">
                         	</div>
-
+					<sec:authentication property="principal" var="pinfo"/>
+						<sec:authorize access="isAuthenticated()">
+						<c:if test="${pinfo.username eq board.writer}">
+						
 							<button type="submit" data-oper='modify' class="btn btn-default">Modify</button>
 							<button type="submit" data-oper='remove' class="btn btn-default">Remove</button>
+						
+						</c:if>
+						</sec:authorize>	
 							<button type="submit" data-oper='list' class="btn btn-info">List</button>
                         </form>
                         

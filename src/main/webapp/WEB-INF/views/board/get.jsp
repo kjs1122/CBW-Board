@@ -2,6 +2,7 @@
     pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<%@ taglib prefix="sec" uri="http://www.springframework.org/security/tags" %>
 <%@ include file="../includes/header.jsp" %>
  <!-- Modal -->
 <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -28,7 +29,9 @@
 
             </div>
             <div class="modal-footer">
-                <button id="modalModBtn" type="button" class="btn btn-warning">Modify</button>
+            
+
+           		 <button id="modalModBtn" type="button" class="btn btn-warning">Modify</button>
                 <button id="modalRemoveBtn" type="button" class="btn btn-danger">Remove</button>
                 <button id="modalRegisterBtn" type="button" class="btn btn-info" data-dismiss="modal">Register</button>
                 <button id="modalCloseBtn" type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -213,15 +216,33 @@ $(document).ready(function() {
 		var modalRemoveBtn = $("#modalRemoveBtn");
 		var modalRegisterBtn = $("#modalRegisterBtn");
 		
+		
+		var replyer = null;
+		
+		<sec:authorize access="isAuthenticated()">
+		
+		replyer = '<sec:authentication property="principal.username"/>';
+		</sec:authorize>
+		
+		var csrfHeaderName = "${_csrf.headerName}";
+		var csrfTokenValue = "${_csrf.token}";
+		
 		$("#addReplyBtn").on("click", function(e) {
 			
 			modal.find("input").val("");
+			modalInputReplyer.val(replyer);
 			modalInputReplyDate.closest("div").hide();
 			modal.find("button[id !='modalCloseBtn']").hide();
 			modalRegisterBtn.show();
 			
 			$(".modal").modal("show");
 		});//addReplyBtn click
+		
+		//Ajax spring security header
+		$(document).ajaxSend(function(e, xhr, option) {
+			xhr.setRequestHeader(csrfHeaderName, csrfTokenValue);
+		});
+		
 		
 		modalRegisterBtn.on("click", function(e) {
 			
@@ -259,8 +280,26 @@ $(document).ready(function() {
 		});//chat click
 		
 		modalModBtn.on("click", function(e) {
+			var originalReplyer = modalInputReplyer.val();
+			var reply = {
+					
+					rno : modal.data("rno"),
+					reply : modalInputReply.val(),
+					replyer : originalReplyer
+			};
 			
-			var reply = {rno:modal.data("rno"), reply:modalInputReply.val()};
+
+			if(!replyer){
+				alert("로그인후 수정이 가능합니다.")
+				modal.modal("hide");
+				return;
+			}
+			
+			if(replyer != originalReplyer){
+				alert("자신이 작성한 댓글만 수정이 가능합니다.");
+				modal.modal("hide");
+				return;
+			}
 			
 			replyService.update(reply, function(result) {
 				alert(result);
@@ -274,12 +313,26 @@ $(document).ready(function() {
 			
 			var rno = modal.data("rno");
 			
-			replyService.remove(rno, function(result) {
+			if(!replyer){
+				alert("로그인후 삭제가 가능합니다.")
+				modal.modal("hide");
+				return;
+			}
+			var originalReplyer = modalInputReplyer.val();
+			
+			if(replyer != originalReplyer){
+				alert("자신이 작성한 댓글만 삭제가 가능합니다.");
+				modal.modal("hide");
+				return;
+			}
+			
+			
+			replyService.remove(rno,originalReplyer, function(result) {
 				alert(result);
 				modal.modal("hide")
 				showList(pageNum);
 			})
-		})
+		})//modalRemoveBtn click
 		
 });//ready
 </script>
@@ -321,7 +374,14 @@ $(document).ready(function() {
                         		<label>Writer</label> <input class="form-control" name="writer"
                         		value='<c:out value="${board.writer}"/>' readonly="readonly">
                         	</div>
-                        	<button data-oper='modify' class="btn btn-default">Modify</button>
+                        	           	<sec:authentication property="principal" var="pinfo"/>
+           		<sec:authorize access="isAuthenticated()">
+           		
+           		<c:if test="${pinfo.username eq board.writer}">
+           		 <button data-oper='modify' class="btn btn-default">Modify</button>
+           		</c:if>
+           		</sec:authorize> 
+                        	
                         	<button data-oper='list' class="btn btn-default">List</button>
                         	
                         	<form id="operForm" action="/board/modify" method="get">
@@ -421,7 +481,9 @@ $(document).ready(function() {
  					<div class="panel panel-default">
  						<div class="panel-heading">
  							<i class="fa fa-comments fa-fw"></i>Reply
+						<sec:authorize access="isAuthenticated()">
  							<button id="addReplyBtn" class="btn btn-primary btn-xs pull-right">New Reply</button>
+						</sec:authorize>
  						</div>
  						<!-- /.panel-heading -->
  						<div class="panel-body">

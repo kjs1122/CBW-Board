@@ -1,5 +1,8 @@
 package org.zerock.mapper;
 
-public class MemberMapper {
+import org.zerock.domain.MemberVO;
 
+public interface MemberMapper {
+
+	public MemberVO read(String userid);
 }
